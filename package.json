@@ -1,6 +1,8 @@
 {
     "name": "@portal-solutions/rage",
-    "workspaces": [],
+    "workspaces": [
+        "rage-runtime"
+    ],
     "devDependencies": {
         "parcel": "^2.15.4"
     }
