@@ -1,4 +1,34 @@
+use swc_common::Span;
+use swc_ecma_ast::{
+    BinExpr, BinaryOp, Expr, IdentName, MemberExpr, MetaPropExpr, ObjectLit, OptChainExpr,
+};
+
 use crate::*;
+pub fn import_meta_hot(span: Span) -> Expr {
+    Expr::Bin(BinExpr {
+        span,
+        op: BinaryOp::NullishCoalescing,
+        left: Box::new(Expr::OptChain(OptChainExpr {
+            span,
+            optional: false,
+            base: Box::new(swc_ecma_ast::OptChainBase::Member(MemberExpr {
+                span,
+                obj: Box::new(Expr::MetaProp(MetaPropExpr {
+                    span,
+                    kind: swc_ecma_ast::MetaPropKind::ImportMeta,
+                })),
+                prop: swc_ecma_ast::MemberProp::Ident(IdentName {
+                    span,
+                    sym: Atom::new("hot"),
+                }),
+            })),
+        })),
+        right: Box::new(Expr::Object(ObjectLit {
+            span,
+            props: Default::default(),
+        })),
+    })
+}
 #[derive(Default)]
 pub(crate) struct ImportManifest {
     pub(crate) map: BTreeMap<Atom, BTreeMap<Atom, Id>>,

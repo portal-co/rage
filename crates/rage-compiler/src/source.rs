@@ -1,8 +1,22 @@
+use std::rc::Rc;
+
+use swc_common::{source_map::RealFileLoader, sync::Lrc, FileLoader, FileName};
+
 use crate::*;
-#[derive(Default)]
+
 pub(crate) struct RustLoader {
     pub(crate) map: OnceMap<[u8; 32], Box<swc_common::sync::Lrc<SourceFile>>>,
     pub(crate) sm: swc_common::sync::Lrc<SourceMap>,
+    pub(crate) loader: swc_common::sync::Lrc<dyn FileLoader>,
+}
+impl Default for RustLoader {
+    fn default() -> Self {
+        Self {
+            map: Default::default(),
+            sm: Default::default(),
+            loader: Lrc::new(RealFileLoader {}),
+        }
+    }
 }
 impl RustLoader {
     pub(crate) fn load(&self, a: &Path) -> anyhow::Result<swc_common::sync::Lrc<SourceFile>> {
@@ -10,7 +24,12 @@ impl RustLoader {
             .map
             .try_insert(
                 sha3::Sha3_256::digest(a.as_os_str().as_encoded_bytes()).into(),
-                |_| self.sm.load_file(a).map(Box::new),
+                |_| {
+                    self.loader
+                        .read_file(a)
+                        .map(|b| self.sm.new_source_file(Lrc::new(FileName::Real(a.to_path_buf())), b))
+                        .map(Box::new)
+                },
             )?
             .clone());
     }
