@@ -101,7 +101,7 @@ export class RTTI {
     let del = () => {};
     if (a instanceof RTTI) {
       if (a.#args.length === 0) {
-        RTTI.#_WeakMap_set(this.#directImpls, a, v);
+        RTTI.#_WeakMap_set(this.#directImpls, a.#klass, v);
       } else {
         RTTI.#_Map_set(this.#traitImpls, a.#is, v);
         del = () => RTTI.#_Map_delete(this.#traitImpls, a.#is);

@@ -10,3 +10,7 @@ use swc_common::{Mark, SourceFile, SourceMap, SyntaxContext};
 use swc_ecma_ast::{Id, ImportDecl, ImportNamedSpecifier, ModuleItem, VarDecl, VarDeclarator};
 pub(crate) mod source;
 pub(crate) mod import;
+
+pub struct Cfg{
+    pub hmr: bool,
+}

@@ -1,32 +1,78 @@
 use swc_common::Span;
 use swc_ecma_ast::{
-    BinExpr, BinaryOp, Expr, IdentName, MemberExpr, MetaPropExpr, ObjectLit, OptChainExpr,
+    ArrowExpr, AssignExpr, AssignOp, BinExpr, BinaryOp, CallExpr, Expr, ExprOrSpread, ExprStmt,
+    Ident, IdentName, KeyValuePatProp, KeyValueProp, Lit, MemberExpr, MetaPropExpr, ObjectLit,
+    ObjectPat, OptCall, OptChainExpr, Pat, Prop, PropOrSpread, Stmt, Str,
 };
 
 use crate::*;
 pub fn import_meta_hot(span: Span) -> Expr {
-    Expr::Bin(BinExpr {
+    Expr::OptChain(OptChainExpr {
         span,
-        op: BinaryOp::NullishCoalescing,
-        left: Box::new(Expr::OptChain(OptChainExpr {
+        optional: false,
+        base: Box::new(swc_ecma_ast::OptChainBase::Member(MemberExpr {
             span,
-            optional: false,
-            base: Box::new(swc_ecma_ast::OptChainBase::Member(MemberExpr {
+            obj: Box::new(Expr::MetaProp(MetaPropExpr {
                 span,
-                obj: Box::new(Expr::MetaProp(MetaPropExpr {
-                    span,
-                    kind: swc_ecma_ast::MetaPropKind::ImportMeta,
-                })),
-                prop: swc_ecma_ast::MemberProp::Ident(IdentName {
-                    span,
-                    sym: Atom::new("hot"),
-                }),
+                kind: swc_ecma_ast::MetaPropKind::ImportMeta,
             })),
+            prop: swc_ecma_ast::MemberProp::Ident(IdentName {
+                span,
+                sym: Atom::new("hot"),
+            }),
         })),
-        right: Box::new(Expr::Object(ObjectLit {
-            span,
-            props: Default::default(),
-        })),
+    })
+}
+pub fn prune(span: Span, ctxt: SyntaxContext) -> Expr {
+    let i = Ident::new(Atom::new("$"), span, ctxt);
+    Expr::Object(ObjectLit {
+        span,
+        props: [PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+            key: swc_ecma_ast::PropName::Ident(IdentName {
+                span,
+                sym: Atom::new("prune"),
+            }),
+            value: Box::new(Expr::Arrow(ArrowExpr {
+                span,
+                ctxt,
+                params: [Pat::Ident(i.clone().into())].into_iter().collect(),
+                is_async: false,
+                is_generator: false,
+                type_params: None,
+                return_type: None,
+                body: Box::new(swc_ecma_ast::BlockStmtOrExpr::Expr(Box::new(
+                    Expr::OptChain(OptChainExpr {
+                        span,
+                        optional: false,
+                        base: Box::new(swc_ecma_ast::OptChainBase::Call(OptCall {
+                            span,
+                            ctxt,
+                            args: [ExprOrSpread {
+                                expr: i.into(),
+                                spread: None,
+                            }]
+                            .into_iter()
+                            .collect(),
+                            type_args: None,
+                            callee: Box::new(Expr::OptChain(OptChainExpr {
+                                span,
+                                optional: false,
+                                base: Box::new(swc_ecma_ast::OptChainBase::Member(MemberExpr {
+                                    span,
+                                    obj: Box::new(import_meta_hot(span)),
+                                    prop: swc_ecma_ast::MemberProp::Ident(IdentName {
+                                        span,
+                                        sym: Atom::new("dispose"),
+                                    }),
+                                })),
+                            })),
+                        })),
+                    }),
+                ))),
+            })),
+        })))]
+        .into_iter()
+        .collect(),
     })
 }
 #[derive(Default)]
@@ -60,40 +106,117 @@ impl ImportManifest {
         return self
             .map
             .iter()
-            .map(move |(a, b)| {
-                ModuleItem::ModuleDecl(swc_ecma_ast::ModuleDecl::Import(ImportDecl {
-                    span,
-                    specifiers: b
-                        .iter()
-                        .map(|(c, d)| {
-                            swc_ecma_ast::ImportSpecifier::Named(ImportNamedSpecifier {
+            .flat_map(move |(a, b)| {
+                [
+                    ModuleItem::ModuleDecl(swc_ecma_ast::ModuleDecl::Import(ImportDecl {
+                        span,
+                        specifiers: b
+                            .iter()
+                            .map(|(c, d)| {
+                                swc_ecma_ast::ImportSpecifier::Named(ImportNamedSpecifier {
+                                    span,
+                                    local: swc_ecma_ast::Ident {
+                                        span,
+                                        ctxt: d.1,
+                                        sym: Atom::new(format!("$import${}", &d.0)),
+                                        optional: false,
+                                    },
+                                    imported: Some(swc_ecma_ast::ModuleExportName::Str(
+                                        swc_ecma_ast::Str {
+                                            span,
+                                            value: c.clone(),
+                                            raw: None,
+                                        },
+                                    )),
+                                    is_type_only: false,
+                                })
+                            })
+                            .collect(),
+                        type_only: false,
+                        with: None,
+                        phase: Default::default(),
+                        src: Box::new(swc_ecma_ast::Str {
+                            span,
+                            raw: None,
+                            value: a.clone(),
+                        }),
+                    })),
+                    ModuleItem::Stmt(Stmt::Decl(swc_ecma_ast::Decl::Var(Box::new(VarDecl {
+                        span,
+                        ctxt: Default::default(),
+                        kind: swc_ecma_ast::VarDeclKind::Let,
+                        declare: false,
+                        decls: b
+                            .iter()
+                            .map(|(_, d)| VarDeclarator {
                                 span,
-                                local: swc_ecma_ast::Ident {
+                                name: d.clone().into(),
+                                init: Some(Box::new(Expr::Ident(swc_ecma_ast::Ident {
                                     span,
                                     ctxt: d.1,
-                                    sym: d.0.clone(),
+                                    sym: Atom::new(format!("$import${}", &d.0)),
                                     optional: false,
-                                },
-                                imported: Some(swc_ecma_ast::ModuleExportName::Str(
-                                    swc_ecma_ast::Str {
-                                        span,
-                                        value: c.clone(),
-                                        raw: None,
-                                    },
-                                )),
-                                is_type_only: false,
+                                }))),
+                                definite: false,
                             })
-                        })
-                        .collect(),
-                    type_only: false,
-                    with: None,
-                    phase: Default::default(),
-                    src: Box::new(swc_ecma_ast::Str {
+                            .collect(),
+                    })))),
+                    ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                         span,
-                        raw: None,
-                        value: a.clone(),
-                    }),
-                }))
+                        expr: Box::new(Expr::OptChain(OptChainExpr {
+                            span,
+                            optional: false,
+                            base: Box::new(swc_ecma_ast::OptChainBase::Call(OptCall {
+                                span,
+                                ctxt: Default::default(),
+                                callee: Box::new(Expr::OptChain(OptChainExpr {
+                                    span,
+                                    optional: false,
+                                    base: Box::new(swc_ecma_ast::OptChainBase::Member(
+                                        MemberExpr {
+                                            span,
+                                            obj: import_meta_hot(span).into(),
+                                            prop: swc_ecma_ast::MemberProp::Ident(IdentName {
+                                                span,
+                                                sym: Atom::new("accept"),
+                                            }),
+                                        },
+                                    )),
+                                })),
+                                args: [
+                                    Expr::Lit(Lit::Str(Str{span,raw:None,value:a.clone()})),
+                                    match Ident::new_private(Atom::new(format!("$new${}",a)), span){
+                                        id => Expr::Arrow(ArrowExpr { 
+                                            span, 
+                                            ctxt: Default::default(), 
+                                            params: [Pat::Ident(id.clone().into())].into_iter().collect(), 
+                                            body: Box::new(Expr::Assign(AssignExpr{
+                                                span,
+                                                op:AssignOp::Assign,
+                                                right:id.into(),
+                                                left:swc_ecma_ast::AssignTarget::Pat(swc_ecma_ast::AssignTargetPat::Object(ObjectPat{
+                                                    span,
+                                                    optional:false,
+                                                    type_ann:None,
+                                                    props:b.iter().map(|(c,d)|swc_ecma_ast::ObjectPatProp::KeyValue(KeyValuePatProp{
+                                                        key: swc_ecma_ast::PropName::Str(Str { 
+                                                            span,
+                                                            value: c.clone(), 
+                                                            raw: None }),
+                                                        value: Box::new(Pat::Ident(d.clone().into()))
+                                                    })).collect()})
+                                                )}).into()), 
+                                            is_async: false, 
+                                            is_generator: false,
+                                            type_params: None, 
+                                            return_type: None })
+                                    },
+                                ].into_iter().map(|a|ExprOrSpread { spread: None, expr: Box::new(a) }).collect(),
+                                type_args: None,
+                            })),
+                        })),
+                    })),
+                ]
             })
             .chain(self.globals.iter().map(move |(a, b)| {
                 ModuleItem::Stmt(swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::Var(Box::new(
