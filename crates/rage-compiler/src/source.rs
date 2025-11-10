@@ -1,9 +1,6 @@
 use std::{path::PathBuf, rc::Rc};
-
 use swc_common::{FileLoader, FileName, source_map::RealFileLoader, sync::Lrc};
-
 use crate::*;
-
 pub(crate) struct RustLoader {
     pub(crate) map: OnceMap<[u8; 32], Box<swc_common::sync::Lrc<SourceFile>>>,
     pub(crate) files: OnceMap<[u8; 32], Box<PathBuf>>,
