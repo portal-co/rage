@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{any::Any, pin::Pin};
 
 use async_trait::async_trait;
 
@@ -13,7 +13,9 @@ pub trait Remap<Ctx> {
         Self: 'a;
     fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Self::Output<'_>;
 }
-pub trait EmitCtx {}
+pub trait EmitCtx {
+    fn backend(&self) -> &(dyn Any);
+}
 // #[async_trait]
 pub trait Emit<T, Stmt> {
     fn emit(&self, cfg: &Cfg, ctx: &(dyn EmitCtx + '_)) -> EmitRes<'_, T, Stmt>;
