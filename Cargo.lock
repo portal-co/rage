@@ -610,6 +610,7 @@ dependencies = [
  "portal-solutions-swibb",
  "proc-macro2",
  "quote",
+ "rage-common",
  "sha3",
  "swc_atoms",
  "swc_common",
@@ -678,8 +679,12 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 name = "rage-common"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "itertools",
+ "once_map",
  "proc-macro2",
  "quote",
+ "sha3",
  "syn",
 ]
 
