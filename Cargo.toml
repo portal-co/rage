@@ -30,6 +30,7 @@ anyhow = "1.0.98"
 itertools = "0.14.0"
 once_map = "0.4.21"
 sha3 = "0.10.8"
+async-trait = "0.1.89"
 
 
 proc-macro2 = { version = "^1.0.95", features = ["span-locations"] }

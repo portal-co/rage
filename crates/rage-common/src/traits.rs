@@ -1,3 +1,7 @@
+use std::pin::Pin;
+
+use async_trait::async_trait;
+
 use crate::*;
 pub trait Mapper {
     type Ctx: Clone;
@@ -9,14 +13,72 @@ pub trait Remap<Ctx> {
         Self: 'a;
     fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Self::Output<'_>;
 }
-pub trait Emit<T> {
-    fn emit(&self, cfg: &Cfg) -> T;
+pub trait EmitCtx {}
+// #[async_trait]
+pub trait Emit<T, Stmt> {
+    fn emit(&self, cfg: &Cfg, ctx: &(dyn EmitCtx + '_)) -> EmitRes<'_, T, Stmt>;
 }
-pub trait RemapEmit<T, Ctx> {
-    fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Arc<dyn Emit<T> + '_>;
+pub trait StmtEmit<Stmt>: Emit<Stmt, Stmt> {
+    fn collapse(&self, cfg: &Cfg, ctx: &(dyn EmitCtx + '_)) -> Vec<Stmt> {
+        self.emit(cfg, ctx).collapse(cfg, ctx)
+    }
 }
-impl<T, Ctx, U: for<'a> Remap<Ctx, Output<'a>: Emit<T>>> RemapEmit<T, Ctx> for U {
-    fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Arc<dyn Emit<T> + '_> {
+impl<Stmt, T: Emit<Stmt, Stmt> + ?Sized> StmtEmit<Stmt> for T {}
+pub struct EmitRes<'a, T, Stmt> {
+    pub value: T,
+    pub statements: Vec<Arc<dyn Emit<Stmt, Stmt> + 'a>>,
+}
+impl<'a, T, Stmt> EmitRes<'a, T, Stmt> {
+    pub fn with_value<U>(self, go: impl FnOnce(T) -> EmitRes<'a, U, Stmt>) -> EmitRes<'a, U, Stmt> {
+        let EmitRes {
+            value,
+            mut statements,
+        } = self;
+        let EmitRes {
+            value,
+            statements: s2,
+        } = go(value);
+        statements.extend(s2);
+        EmitRes { value, statements }
+    }
+    pub fn with_iter<U, I: IntoIterator<Item = EmitRes<'a, U, Stmt>>>(
+        self,
+        go: impl FnOnce(T) -> I,
+    ) -> EmitRes<'a, Vec<U>, Stmt> {
+        let EmitRes {
+            value,
+            mut statements,
+        } = self;
+        EmitRes {
+            value: go(value)
+                .into_iter()
+                .map(
+                    |EmitRes {
+                         value,
+                         statements: s2,
+                     }| {
+                        statements.extend(s2);
+                        return value;
+                    },
+                )
+                .collect(),
+            statements,
+        }
+    }
+}
+impl<'a, Stmt> EmitRes<'a, Stmt, Stmt> {
+    pub fn collapse(self, cfg: &Cfg, ctx: &(dyn EmitCtx + '_)) -> Vec<Stmt> {
+        return [self.value]
+            .into_iter()
+            .chain(self.statements.iter().flat_map(|a| a.collapse(cfg, ctx)))
+            .collect();
+    }
+}
+pub trait RemapEmit<T, Stmt, Ctx> {
+    fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Arc<dyn Emit<T, Stmt> + '_>;
+}
+impl<T, Stmt, Ctx, U: for<'a> Remap<Ctx, Output<'a>: Emit<T, Stmt>>> RemapEmit<T, Stmt, Ctx> for U {
+    fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Arc<dyn Emit<T, Stmt> + '_> {
         Arc::new(Remap::remap(self, m))
     }
 }
