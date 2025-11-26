@@ -703,6 +703,12 @@ dependencies = [
 [[package]]
 name = "ragen"
 version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "ragen-core",
+ "syn",
+]
 
 [[package]]
 name = "ragen-core"
