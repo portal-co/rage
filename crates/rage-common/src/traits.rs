@@ -7,11 +7,14 @@ pub trait Mapper {
     type Ctx: Clone;
     fn ctx_of(&self, id: &Ident) -> Self::Ctx;
 }
-pub trait Remap<Ctx> {
-    type Output<'a>: 'a
-    where
-        Self: 'a;
-    fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Self::Output<'_>;
+pub trait RemapOutput<'a, Ctx: 'a> {
+    type Output;
+}
+pub trait Remap<Ctx>: for<'a> RemapOutput<'a, Ctx> {
+    fn remap<'a>(
+        &'a self,
+        m: &'a (dyn Mapper<Ctx = Ctx> + 'a),
+    ) -> <Self as RemapOutput<'a, Ctx>>::Output;
 }
 pub trait EmitCtx {
     fn backend(&self) -> &(dyn Any);
@@ -77,10 +80,12 @@ impl<'a, Stmt> EmitRes<'a, Stmt, Stmt> {
     }
 }
 pub trait RemapEmit<T, Stmt, Ctx> {
-    fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Arc<dyn Emit<T, Stmt> + '_>;
+    fn remap<'a>(&'a self, m: &'a (dyn Mapper<Ctx = Ctx> + 'a)) -> Arc<dyn Emit<T, Stmt> + 'a>;
 }
-impl<T, Stmt, Ctx, U: for<'a> Remap<Ctx, Output<'a>: Emit<T, Stmt>>> RemapEmit<T, Stmt, Ctx> for U {
-    fn remap(&self, m: &(dyn Mapper<Ctx = Ctx> + '_)) -> Arc<dyn Emit<T, Stmt> + '_> {
+impl<T, Stmt, Ctx, U: Remap<Ctx> + for<'a> RemapOutput<'a, Ctx, Output: Emit<T, Stmt>>>
+    RemapEmit<T, Stmt, Ctx> for U
+{
+    fn remap<'a>(&'a self, m: &'a (dyn Mapper<Ctx = Ctx> + 'a)) -> Arc<dyn Emit<T, Stmt> + 'a> {
         Arc::new(Remap::remap(self, m))
     }
 }

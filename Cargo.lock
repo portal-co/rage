@@ -701,6 +701,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "ragen"
+version = "0.1.0"
+
+[[package]]
+name = "ragen-core"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "ragen-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "ragen-core",
+ "syn",
+]
+
+[[package]]
 name = "rand"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
