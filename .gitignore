@@ -1,3 +1,4 @@
-target
+.DS_Store
+.parcel-cachetarget
 node_modules
-.parcel-cache
+target
