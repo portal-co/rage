@@ -656,7 +656,7 @@ dependencies = [
 [[package]]
 name = "portal-solutions-swibb"
 version = "0.5.0"
-source = "git+https://github.com/portal-co/swibb.git?branch=main#c21af5c9e10cf0cde31c07f024fbfcc0acc035f6"
+source = "git+https://github.com/portal-co/swibb.git?branch=main#bf3d7161879ff9217cbdef45cec0d5fd226b5f4e"
 dependencies = [
  "impl-trait-for-tuples",
  "swc_atoms",
